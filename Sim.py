@@ -439,8 +439,8 @@ def play_round(players, round_id, stats, round_number=0):
 def make_bots(custom_threshold, fixed_threshold):
     return [
         Player("Bot A", fixed_threshold),
-        Player("Bot B", fixed_threshold),
-        Player("Bot C", fixed_threshold),
+        Player("Bot B", fixed_threshold+5),
+        Player("Bot C", fixed_threshold-5),
         Player("Custom", custom_threshold),
     ]
 

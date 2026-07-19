@@ -3,14 +3,32 @@ import csv
 import os
 from collections import defaultdict
 
-BANK = {
-    0: 1, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 12,
-    "f3": 3, "fr": 3, "sec": 3,
-    "2+": 1, "4+": 1, "6+": 1, "8+": 1, "10+": 1,
+BANK = { #There's 1 Zero, 1 One, 2 Twos...
+    0: 1, 
+    1: 1, 
+    2: 2, 
+    3: 3, 
+    4: 4, 
+    5: 5, 
+    6: 6, 
+    7: 7, 
+    8: 8, 
+    9: 9, 
+    10: 10, 
+    11: 11, 
+    12: 12,
+    "f3": 3, #Flip 3
+    "fr": 3, #Freeze
+    "sec": 3, #Second Chance
+    "2+": 1, 
+    "4+": 1, 
+    "6+": 1, 
+    "8+": 1, 
+    "10+": 1,
     "2x": 1,
 }
 
-MOD_VALUES = {"2+": 2, "4+": 4, "6+": 6, "8+": 8, "10+": 10}
+MOD_VALUES = {"2+": 2, "4+": 4, "6+": 6, "8+": 8, "10+": 10} #Converting 2+ into 2
 
 CUSTOM_THRESHOLDS = [
     0.00,
@@ -25,33 +43,32 @@ CUSTOM_THRESHOLDS = [
     0.90,
     1.00
 ]
-FIXED_THRESHOLD = 0.45
-GAMES_TO_SIMULATE = 50_000
+FIXED_THRESHOLD = 0.45 #"Human" threshold, found through repeated analysis of multiple sets
+GAMES_TO_SIMULATE = 50_000 #Customize to whatever, but your memory is going to need to handle it
 OUTPUT_DIR = "."
 
 
 class Deck:
     def __init__(self):
-        self.cards = [card for card, count in BANK.items() for _ in range(count)]
+        self.cards = [card for card, count in BANK.items() for _ in range(count)] #"card" (output) for "item" (card), count in BANK.items()
         random.shuffle(self.cards)
 
     def draw_card(self):
-        if not self.cards:
+        if not self.cards: #If there are no cards left, return None
             return None
-        return self.cards.pop()
+        return self.cards.pop() #return a card and remove it with .pop()
 
     def bust_probability(self, player):
         if not self.cards:
-            return 0.0
+            return 0.0 #If no cards, perfectly safe I guess
         held = set(player.hand)
         if not held:
-            return 0.0
-        matching = sum(1 for c in self.cards if isinstance(c, int) and c in held)
-        return matching / len(self.cards)
+            return 0.0 #If first turn, perfectly safe
+        matching = sum(1 for c in self.cards if isinstance(c, int) and c in held) #Add 1 matching card for each card that matches
+        return matching / len(self.cards) #Then divide by total cards in deck
     
-    def get_avg_value(self):
+    def get_avg_value(self): #This is for calculating EV
         numeric_cards = [c for c in self.cards if isinstance(c, int)]
-
         
         if not numeric_cards:
             return 0.0
@@ -67,7 +84,7 @@ class Player:
         self.hand = []
         self.has_second_chance = False
         self.has_x2 = False
-        self.mod_flat = 0
+        self.mod_flat = 0 #Mod flat is the modifiers... +2, +4
 
         self.active = True
         self.busted = False
@@ -80,7 +97,7 @@ class Player:
         self.hand = []
         self.has_second_chance = False
         self.has_x2 = False
-        self.mod_flat = 0
+        self.mod_flat = 0 
         self.active = True
         self.busted = False
         self.flip7 = False
@@ -89,13 +106,13 @@ class Player:
         self.second_chances_used = 0
 
     def get_threshold(self, round_number):
-        if callable(self.threshold):
+        if callable(self.threshold): #If in a round, give the bust rate
             return self.threshold(self, round_number)
         return self.threshold
 
     def running_value(self):
-        number_total = sum(self.hand) * (2 if self.has_x2 else 1)
-        return number_total + self.mod_flat
+        number_total = sum(self.hand) * (2 if self.has_x2 else 1) #Running value is the sum of cards' values
+        return number_total + self.mod_flat #Plus the +2 and +4s
     
     def expected_value(self, deck):
         bust_prob = deck.bust_probability(self)
@@ -103,57 +120,50 @@ class Player:
 
         survive_value = self.running_value() + avg_card
 
-        ev = (1 - bust_prob) * survive_value
+        ev = ((1 - bust_prob) * (survive_value)) - ((bust_prob) * self.running_value())
+        #ev = P(Win) * survive_value - P(Bust)*Running_Value
         return ev
 
     def finalize_score(self, bonus=0):
         self.score = self.running_value() + bonus
 
 
-def pick_random_other_active(players, caster):
+def pick_random_other_active(players, caster): #This is for applying f3 and fr
     others = [p for p in players if p is not caster and p.active]
     if not others:
-        return None
+        return caster #You must choose yourself if there is nobody else.
     return random.choice(others)
 
 
 class StatsCollector:
     def __init__(self):
-        self.draw_records = []
-        self.round_records = []
-        # (round_id, player_name) -> list of indices into draw_records,
-        # so we can backfill "did this round end in a win" once the round
-        # is fully resolved and every player's final score is known.
+        self.draw_records = [] #We keep a record of the draws to make sure we are statistically sound
+        self.round_records = [] #We keep a record of the roudns to see how long they last and such
         self._draw_index_by_round_player = defaultdict(list)
 
     def log_draw(self, round_id, player, card, busted_this_draw, is_forced, deck):
-        self.draw_records.append({
+        self.draw_records.append({ #Keep track of and append these things...
             "round_id": round_id,
-            "player": player.name,
+            "player": player.name, 
             "draw_number": player.draws_this_round,
             "card": card,
             "busted_this_draw": busted_this_draw,
             "running_number_total": sum(player.hand),
-            "running_value": player.running_value(),
+            "running_value": player.expected_value(deck),
             "expected_value": player.expected_value(deck),
             "has_second_chance": player.has_second_chance,
             "has_x2": player.has_x2,
             "is_forced": is_forced,
-            "round_won": None,          # backfilled in finalize_round()
-            "round_final_score": None,  # backfilled in finalize_round()
+            "round_won": None, #This is inputted later
+            "round_final_score": None,
         })
         self._draw_index_by_round_player[(round_id, player.name)].append(len(self.draw_records) - 1)
 
     def finalize_round(self, round_id, players):
-        """Call once, after ALL players in a round have finished. Records
-        each player's round outcome (including win/loss) and backfills
-        every draw made during the round with whether that round was
-        ultimately won, so win rate can be analyzed as a function of
-        draw number (lag k)."""
-        best_score = max(p.score for p in players)
+        best_score = max(p.score for p in players) #best score is the max of all the scores
 
         for player in players:
-            won = player.score == best_score
+            won = player.score == best_score #The won truth value is if their score == best
             self.round_records.append({
                 "round_id": round_id,
                 "player": player.name,
@@ -167,20 +177,21 @@ class StatsCollector:
                 "won": won,
             })
 
-            for idx in self._draw_index_by_round_player.get((round_id, player.name), []):
+            for idx in self._draw_index_by_round_player.get((round_id, player.name), []): #Every time we append (above), let round_won be the truth value we got from earlier
                 self.draw_records[idx]["round_won"] = won
                 self.draw_records[idx]["round_final_score"] = player.score
 
     def write_lag_k_bust_probability(self, path):
-        attempts = defaultdict(int)
-        busts = defaultdict(int)
+        attempts = defaultdict(int) #defaultdict makes a __missing__() method when you call soemthing that doesn't exist... 
+        busts = defaultdict(int) #Then it creates something for it
+                                 #DefualtDict is better becuase we're making ["draw_number" : 10, "busted" : True] and stuff like that
         for r in self.draw_records:
-            k = r["draw_number"]
+            k = r["draw_number"] #We're looking at change per round, so we have 'k' rounds
             attempts[k] += 1
             if r["busted_this_draw"]:
                 busts[k] += 1
 
-        with open(path, "w", newline="") as f:
+        with open(path, "w", newline="") as f: #We then write a csv for it
             writer = csv.writer(f)
             writer.writerow(["draw_number_k", "attempts", "busts", "bust_rate"])
             for k in sorted(attempts):
@@ -195,21 +206,20 @@ class StatsCollector:
             k = r["draw_number"]
             v = r["expected_value"]
             totals[k] += v
-            sumsq[k] += v * v
+            sumsq[k] += v * v #We need the sumsq for stdev calculations
             counts[k] += 1
 
         means = {}
         with open(path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["draw_number_k", "samples", "mean_running_value",
-                              "std_running_value", "marginal_gain_vs_prev_k"])
+            writer.writerow(["draw_number_k", "samples", "mean_expected_value", "std_expected_value", "marginal_gain_vs_prev_k"])
             for k in sorted(counts):
                 mean = totals[k] / counts[k]
-                var = sumsq[k] / counts[k] - mean ** 2
-                std = var ** 0.5 if var > 0 else 0.0
+                var = sumsq[k] / counts[k] - mean ** 2 #variance calculation
+                std = var ** 0.5 if var > 0 else 0.0 #stdev calculation
                 means[k] = mean
                 prev_mean = means.get(k - 1)
-                marginal = mean - prev_mean if prev_mean is not None else ""
+                marginal = mean - prev_mean if prev_mean is not None else "" #marginal is like the derivative
                 writer.writerow([k, counts[k], round(mean, 4), round(std, 4), marginal])
 
     def write_round_length_distribution(self, path):
@@ -257,9 +267,7 @@ class StatsCollector:
 
         with open(path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["player", "threshold", "games", "mean_score", "std_score",
-                              "median_score", "win_rate", "bust_rate", "flip7_rate",
-                              "avg_draws_per_round", "avg_second_chances_used"])
+            writer.writerow(["player", "threshold", "games", "mean_score", "std_score", "median_score", "win_rate", "bust_rate", "flip7_rate", "avg_draws_per_round", "avg_second_chances_used"])
             for player_name, rows in by_player.items():
                 scores = sorted(r["final_score"] for r in rows)
                 n = len(scores)
@@ -278,12 +286,6 @@ class StatsCollector:
                                   round(flip7_rate, 6), round(avg_draws, 4), round(avg_sc, 4)])
 
     def write_custom_lag_k_performance(self, path, player_name="Custom"):
-        """For the tracked player, at each draw number k (i.e. among rounds
-        where that player reached at least k draws): win rate for the round
-        that draw belongs to, mean/std of running (bankable) value at that
-        point, and the bust rate at that draw. This lets you see how win
-        probability and expected value evolve turn-by-turn within a round,
-        not just at the final stopping point."""
         rows = [r for r in self.draw_records if r["player"] == player_name]
 
         by_k = defaultdict(list)
@@ -292,8 +294,7 @@ class StatsCollector:
 
         with open(path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["draw_number_k", "samples", "win_rate", "mean_running_value",
-                              "std_running_value", "bust_rate_at_k"])
+            writer.writerow(["draw_number_k", "samples", "win_rate", "mean_running_value", "std_running_value", "bust_rate_at_k"])
             for k in sorted(by_k):
                 group = by_k[k]
                 n = len(group)
@@ -307,10 +308,6 @@ class StatsCollector:
                                   round(std_v, 4), round(bust_rate, 6)])
 
     def write_custom_final_stop_summary(self, path, player_name="Custom"):
-        """For the tracked player, grouped by how many cards they ended up
-        drawing that round (their final stopping point, whether by choice,
-        bust, freeze, or Flip 7): win rate and score stats. Shows whether
-        stopping earlier/later is associated with better outcomes."""
         rows = [r for r in self.round_records if r["player"] == player_name]
 
         by_len = defaultdict(list)
@@ -319,8 +316,7 @@ class StatsCollector:
 
         with open(path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["total_draws", "samples", "win_rate", "mean_score",
-                              "std_score", "bust_rate", "flip7_rate"])
+            writer.writerow(["total_draws", "samples", "win_rate", "mean_score", "std_score", "bust_rate", "flip7_rate"])
             for length in sorted(by_len):
                 group = by_len[length]
                 n = len(group)
@@ -334,7 +330,7 @@ class StatsCollector:
                 writer.writerow([length, n, round(win_rate, 6), round(mean_s, 4),
                                   round(std_s, 4), round(bust_rate, 6), round(flip7_rate, 6)])
 
-    def write_all(self, output_dir=".", tracked_player="Custom"):
+    def write_all(self, output_dir=".", tracked_player="Custom"): #This creates the files with the csv data we wrote
         self.write_lag_k_bust_probability(f"{output_dir}/lag_k_bust_probability.csv")
         self.write_lag_k_expected_value(f"{output_dir}/lag_k_expected_value.csv")
         self.write_round_length_distribution(f"{output_dir}/round_length_distribution.csv")
@@ -345,7 +341,7 @@ class StatsCollector:
         self.write_custom_final_stop_summary(f"{output_dir}/custom_final_stop_summary.csv", tracked_player)
 
 
-def draw_and_resolve(player, players, deck, round_id, stats, is_forced=False):
+def draw_and_resolve(player, players, deck, round_id, stats, is_forced=False): #This is how we set up the drawing process
     if not player.active or not deck.cards:
         return
 
@@ -356,7 +352,7 @@ def draw_and_resolve(player, players, deck, round_id, stats, is_forced=False):
     player.draws_this_round += 1
     busted_this_draw = False
 
-    if isinstance(card, int):
+    if isinstance(card, int): #If draw number(int) card, then check second chance and add to pile
         if card in player.hand:
             if player.has_second_chance:
                 player.has_second_chance = False
@@ -373,10 +369,10 @@ def draw_and_resolve(player, players, deck, round_id, stats, is_forced=False):
                 player.active = False
                 player.finalize_score(bonus=15)
 
-    elif card == "f3":
+    elif card == "f3": #If flip 3, pick randomly and give 3
         stats.log_draw(round_id, player, card, busted_this_draw, is_forced, deck)
         target = pick_random_other_active(players, player)
-        if target is None:
+        if target is None: #If nobody else, has to do himself
             target = player
         for _ in range(3):
             if not target.active or not deck.cards:
@@ -384,7 +380,7 @@ def draw_and_resolve(player, players, deck, round_id, stats, is_forced=False):
             draw_and_resolve(target, players, deck, round_id, stats, is_forced=True)
         return
 
-    elif card == "fr":
+    elif card == "fr": #If freeze, pick and freeze
         stats.log_draw(round_id, player, card, busted_this_draw, is_forced, deck)
         target = pick_random_other_active(players, player)
         if target is None:

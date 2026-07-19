@@ -1,36 +1,13 @@
-"""
-Analyzes the CSV output produced by the Flip 7 simulation script:
-  - lag_k_bust_probability.csv
-  - lag_k_expected_value.csv
-  - round_length_distribution.csv
-  - card_draw_frequency.csv
-  - bust_cause_breakdown.csv
-  - final_score_summary.csv
-
-Produces:
-  - printed summary statistics to the console
-  - analysis_summary.csv (one consolidated table of derived metrics)
-  - charts (PNG) for the lag-k curves and distributions
-
-Usage:
-    python3 analyze_flip7.py --dir .
-"""
-
 import argparse
 import csv
 import math
 import os
-from collections import defaultdict
 
 import matplotlib
 from cycler import cycler
-matplotlib.use("Agg")
+matplotlib.use("Agg") #Trust me we need this, otherwise it looks really really bad - It's non interactive since we don't need to move around the graphs
 import matplotlib.pyplot as plt
-plt.rcParams['axes.prop_cycle'] = cycler(color=plt.colormaps['tab20'].colors)
-
-# ---------------------------------------------------------------------------
-# CSV loading helpers
-# ---------------------------------------------------------------------------
+plt.rcParams['axes.prop_cycle'] = cycler(color=plt.colormaps['tab20'].colors) #This lets us add more colors than the base 10
 
 def load_csv(path):
     with open(path, newline="") as f:
@@ -378,7 +355,7 @@ def make_multi_threshold_charts(all_results, out_dir):
         )
 
     plt.xlabel("Draw Number")
-    plt.ylabel("Mean Running Value")
+    plt.ylabel("Mean Expected Value")
     plt.title("Expected Value by Draw Number")
     plt.legend(title="Threshold")
     plt.grid(True)
@@ -386,7 +363,7 @@ def make_multi_threshold_charts(all_results, out_dir):
     plt.savefig(
         os.path.join(
             out_dir,
-            "all_threshold_running_value.png"
+            "all_threshold_expected_value.png"
         ),
         dpi=200
     )

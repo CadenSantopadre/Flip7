@@ -1,16 +1,24 @@
-# Initialize tracking lists
 card_num = []
 
-# Global deck state representing total available cards at game start
 BANK = {
-    0: 1, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 
-    6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 12
+    0: 1, 
+    1: 1, 
+    2: 2, 
+    3: 3, 
+    4: 4, 
+    5: 5, 
+    6: 6, 
+    7: 7, 
+    8: 8, 
+    9: 9, 
+    10: 10, 
+    11: 11, 
+    12: 12
 }
 
 def calculate_bust_probability(pulled_card_history):
     current_hand = set(pulled_card_history)
     
-    # Reconstruct remaining deck state
     current_deck = BANK.copy()
     for card in pulled_card_history:
         if card in current_deck and current_deck[card] > 0:
@@ -20,7 +28,6 @@ def calculate_bust_probability(pulled_card_history):
     if total_remaining_cards == 0:
         return 0.0
 
-    # Count remaining cards that match what is already held
     matching_bust_cards = sum(current_deck[card] for card in current_hand if card in current_deck)
     
     return matching_bust_cards / total_remaining_cards
@@ -44,7 +51,6 @@ while True:
             print(f"Invalid card! All {BANK[processed_input]} copies have been drawn.")
             continue
             
-        # Log valid card data
         card_num.append(processed_input)
         
         final_bust_prob = calculate_bust_probability(card_num)
@@ -54,7 +60,6 @@ while True:
     except ValueError:
         print("Invalid input. Please enter a valid integer card number.")
 
-# --- Research Project Data Summary Export ---
 print("\n--- FINAL RESEARCH METRICS ---")
 print(f"Total cards given: {len(card_num)}")
 print(f"Bust probability:  {final_bust_prob * 100:.2f}%")

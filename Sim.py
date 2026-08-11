@@ -43,7 +43,7 @@ CUSTOM_THRESHOLDS = [
     0.90,
     1.00
 ]
-FIXED_THRESHOLD = 0.45 #"Human" threshold, found through repeated analysis of multiple sets
+FIXED_THRESHOLD = 0.47 #"Human" threshold, found through repeated analysis of multiple sets
 GAMES_TO_SIMULATE = 50_000 #Customize to whatever, but your memory is going to need to handle it
 OUTPUT_DIR = "."
 
@@ -439,8 +439,8 @@ def play_round(players, round_id, stats, round_number=0):
 def make_bots(custom_threshold, fixed_threshold):
     return [
         Player("Bot A", fixed_threshold),
-        Player("Bot B", fixed_threshold+5),
-        Player("Bot C", fixed_threshold-5),
+        Player("Bot B", fixed_threshold+0.05),
+        Player("Bot C", fixed_threshold-0.05),
         Player("Custom", custom_threshold),
     ]
 

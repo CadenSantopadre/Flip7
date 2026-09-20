@@ -14,3 +14,6 @@ Calcuates the expected value of continung to flip versus stopping
 Runs hundreds of thousands of games against bots modeled by human greed
 
 Bust rate calculator shows you your chance of busting based on all the cards drawn
+
+## Photos
+![Threshold vs. Bust Rate](threshold_vs_bust_rate.png)

@@ -16,4 +16,6 @@ Runs hundreds of thousands of games against bots modeled by human greed
 Bust rate calculator shows you your chance of busting based on all the cards drawn
 
 ## Photos
-![Threshold vs. Bust Rate](threshold_vs_bust_rate.png)
+![Threshold vs. Bust Rate](threshold_vs_bustrate.png)
+![Threshold vs. Win Rate](threshold_vs_winrate.png)
+![Threshold vs. Score](threshold_vs_score.png)

@@ -19,3 +19,4 @@ Bust rate calculator shows you your chance of busting based on all the cards dra
 ![Threshold vs. Bust Rate](threshold_vs_bustrate.png)
 ![Threshold vs. Win Rate](threshold_vs_winrate.png)
 ![Threshold vs. Score](threshold_vs_score.png)
+![All Threshodl vs. EV](all_threshold_expected_value.png)
